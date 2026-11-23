@@ -1,0 +1,100 @@
+// Enum-like fields are stored as String and validated in the app (Zod),
+// so the schema migrates cleanly from SQLite to PostgreSQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Station {
+  id          Int           @id @default(autoincrement())
+  name        String
+  consoleType String // Xbox | PS5 | Switch2
+  order       Int
+  sessions    PlaySession[]
+  auditLogs   AuditLog[]
+}
+
+model Employee {
+  id        Int           @id @default(autoincrement())
+  name      String        @unique
+  role      String // Admin | Manager | Cashier
+  roleLabel String
+  pinHash   String
+  active    Boolean       @default(true)
+  sessions  PlaySession[]
+  payments  Payment[]
+  auditLogs AuditLog[]
+  shifts    Shift[]
+}
+
+model PlaySession {
+  id          Int       @id @default(autoincrement())
+  stationId   Int
+  station     Station   @relation(fields: [stationId], references: [id])
+  players     Int
+  paidMinutes Int
+  startUtc    DateTime
+  endUtc      DateTime
+  warnedAt    DateTime?
+  lockedAt    DateTime?
+  endedAt     DateTime?
+  endReason   String? // Completed | EndedEarly | Cancelled
+  employeeId  Int
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  payments    Payment[]
+
+  @@index([stationId, endedAt])
+  @@index([endedAt])
+}
+
+model Payment {
+  id          Int          @id @default(autoincrement())
+  sessionId   Int?
+  session     PlaySession? @relation(fields: [sessionId], references: [id])
+  shiftId     Int
+  shift       Shift        @relation(fields: [shiftId], references: [id])
+  amountCents Int
+  method      String // Cash | Card | Transfer
+  minutes     Int
+  kind        String // Session | Extension | Refund | Snack
+  employeeId  Int
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  createdUtc  DateTime     @default(now())
+
+  @@index([shiftId])
+}
+
+// Insert-only. Never update or delete rows.
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  createdUtc  DateTime  @default(now())
+  employeeId  Int?
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  stationId   Int?
+  station     Station?  @relation(fields: [stationId], references: [id])
+  action      String
+  detail      String
+  amountCents Int       @default(0)
+
+  @@index([createdUtc])
+}
+
+model Shift {
+  id          Int       @id @default(autoincrement())
+  employeeId  Int
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  openedUtc   DateTime  @default(now())
+  closedUtc   DateTime?
+  totalCents  Int?
+  payments    Payment[]
+}
+
+model Setting {
+  key   String @id
+  value String // JSON
+}
