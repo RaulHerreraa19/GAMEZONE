@@ -21,11 +21,13 @@ import { BitacoraPage } from './pages/BitacoraPage';
 import { CortePage } from './pages/CortePage';
 import { InventoryPage } from './pages/InventoryPage';
 import { Login } from './pages/Login';
+import { SnacksPage } from './pages/SnacksPage';
 import { StationsAdminPage } from './pages/StationsAdminPage';
 import { UsersPage } from './pages/UsersPage';
 
 const TITLES: Record<View, [string, string]> = {
   est: ['Estaciones', '8 salas · tarifa $50 por persona por hora'],
+  sna: ['Snacks', 'Venta de mostrador, ventas por sala y tickets'],
   bit: ['Bitácora', 'Cada movimiento con hora y empleado responsable'],
   cor: ['Corte de caja', 'Resumen del turno en curso'],
   inv: ['Inventario', 'Snacks y bebidas: precios y existencias'],
@@ -115,6 +117,7 @@ function Shell({ employee }: { employee: EmployeeDto }) {
           </div>
         </div>
         {current === 'est' && <Dashboard stations={stations} states={states} summary={summary} now={now} onAction={onAction} />}
+        {current === 'sna' && <SnacksPage products={products} summary={summary} now={now} onChanged={() => { void reloadSummary(); void reloadProducts(); }} onToast={toast} />}
         {current === 'usr' && <UsersPage me={employee} onToast={toast} />}
         {current === 'bit' && <BitacoraPage now={now} />}
         {current === 'cor' && (

@@ -35,3 +35,7 @@ export function stamp(t: string | number, nowMs: number): string {
   const d = new Date(t);
   return ymd.format(d) === ymd.format(new Date(nowMs)) ? hm.format(d) : `${stampDay.format(d)} ${hm.format(d)}`;
 }
+
+const full = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ });
+/** "23/11/2026, 19:30" in the business time zone (tickets). */
+export const dateTime = (t: string | number) => full.format(new Date(t));

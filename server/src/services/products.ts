@@ -87,13 +87,14 @@ export async function updateProduct(
 }
 
 /**
- * Charges snacks to a session inside the caller's transaction: validates stock, decrements it
- * atomically, and records one Snack payment with its lines plus an audit entry.
+ * Charges snacks inside the caller's transaction: validates stock, decrements it atomically, and
+ * records one Snack payment with its lines plus an audit entry. `sessionId`/`stationId` are null
+ * for counter sales that are not tied to a station.
  */
 export async function sellSnacks(
   tx: Tx,
-  ctx: { employeeId: number; shiftId: number; sessionId: number; stationId: number; method: PayMethod; items: SnackItemInput[] },
-): Promise<{ amountCents: number; audit: AuditDto }> {
+  ctx: { employeeId: number; shiftId: number; sessionId: number | null; stationId: number | null; method: PayMethod; items: SnackItemInput[] },
+): Promise<{ paymentId: number; amountCents: number; audit: AuditDto }> {
   const qty = new Map<number, number>();
   for (const it of ctx.items) qty.set(it.productId, (qty.get(it.productId) ?? 0) + it.quantity);
   if (qty.size === 0) throw new HttpError(400, 'Elige al menos un producto.');
@@ -113,7 +114,7 @@ export async function sellSnacks(
   }
 
   const amountCents = lines.reduce((a, l) => a + l.unitPriceCents * l.quantity, 0);
-  await tx.payment.create({
+  const payment = await tx.payment.create({
     data: {
       sessionId: ctx.sessionId,
       shiftId: ctx.shiftId,
@@ -132,5 +133,5 @@ export async function sellSnacks(
     detail: `${lines.map((l) => `${l.quantity}× ${l.name}`).join(', ')} · ${METHOD_LABEL[ctx.method]}`,
     amountCents,
   });
-  return { amountCents, audit };
+  return { paymentId: payment.id, amountCents, audit };
 }

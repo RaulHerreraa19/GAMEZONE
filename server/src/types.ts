@@ -64,6 +64,25 @@ export interface SnackItemInput {
   quantity: number;
 }
 
+/** One line of a snack sale, with the name and price as they were charged. */
+export interface SnackSaleLine {
+  name: string;
+  quantity: number;
+  unitPriceCents: number;
+}
+
+/** One snack charge. `stationName` is null for counter sales ("Mostrador"). */
+export interface SnackSaleDto {
+  id: number;
+  createdUtc: string;
+  employeeName: string;
+  method: PayMethod;
+  totalCents: number;
+  stationId: number | null;
+  stationName: string | null;
+  lines: SnackSaleLine[];
+}
+
 /** At or below this many units a product shows as "por agotarse". */
 export const LOW_STOCK = 5;
 

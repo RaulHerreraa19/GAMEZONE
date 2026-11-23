@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth.js';
 import { employeesRouter } from './routes/employees.js';
 import { productsRouter } from './routes/products.js';
 import { publicRouter } from './routes/public.js';
+import { salesRouter } from './routes/sales.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { stationsRouter } from './routes/stations.js';
 
@@ -27,6 +28,7 @@ app.use('/api', employeesRouter);
 app.use('/api', stationsRouter);
 app.use('/api', productsRouter);
 app.use('/api', sessionsRouter);
+app.use('/api', salesRouter);
 app.use('/api', auditRouter);
 app.use(errorHandler);
 

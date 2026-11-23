@@ -1,31 +1,22 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../lib/auth.js';
+import { method, snackItems } from '../lib/schemas.js';
 import { addSnacks, cancelSession, endSession, extendSession, startSession } from '../services/sessions.js';
 import { publishAudit, publishShiftChanged } from '../realtime/io.js';
 import { closeShift, getCurrentSummary } from '../services/shift.js';
-import { MAX_CUSTOM_MINUTES, PAY_METHODS } from '../types.js';
+import { MAX_CUSTOM_MINUTES } from '../types.js';
 
 export const sessionsRouter = Router();
 sessionsRouter.use(requireAuth);
 
 const id = (msg: string) => z.coerce.number({ message: msg }).int().positive(msg);
-const method = z.enum(PAY_METHODS, { message: 'Elige una forma de pago válida.' });
 // Any whole number of minutes: the fixed packages are only shortcuts for the UI.
 const minutes = z
   .number({ message: 'Elige el tiempo.' })
   .int('Los minutos deben ser un número entero.')
   .min(1, 'El tiempo mínimo es 1 minuto.')
   .max(MAX_CUSTOM_MINUTES, `El tiempo máximo es ${MAX_CUSTOM_MINUTES} minutos.`);
-
-const snackItems = z
-  .array(
-    z.object({
-      productId: z.number().int().positive('Producto inválido.'),
-      quantity: z.number().int('La cantidad debe ser un número entero.').min(1, 'La cantidad mínima es 1.').max(99, 'La cantidad máxima es 99.'),
-    }),
-  )
-  .max(40, 'Son demasiados productos.');
 
 sessionsRouter.post('/sessions/:id/snacks', async (req, res) => {
   const body = z.object({ method, items: snackItems.min(1, 'Elige al menos un producto.') }).parse(req.body);

@@ -248,3 +248,41 @@ td.amt-neg{color:var(--lock)}
 .icon-pick button:hover{border-color:var(--c);transform:translateY(-2px)}
 .icon-pick button.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 22%,var(--panel2));box-shadow:0 0 12px color-mix(in srgb,var(--c) 40%,transparent)}
 .icon-pick button.on small{color:var(--ink)}
+/* snack sales + ticket */
+.snk-stats{grid-template-columns:repeat(2,minmax(0,1fr)) auto}
+.snk-cols{grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));align-items:start}
+.snk-cols .snacks{max-height:320px}
+.last-sale{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border:1px solid var(--play);border-radius:10px;background:color-mix(in srgb,var(--play) 14%,var(--panel2))}
+.last-sale .btn,.group-acts .btn,.scroll td .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto}
+.last-sale svg,.group-acts svg,.scroll td .btn svg,.acts .btn svg,.snk-stats .inv-new svg{width:18px;height:18px}
+.groups{display:flex;flex-direction:column;gap:8px}
+.group{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 12px}
+.group-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.group-head div{display:flex;flex-direction:column}
+.group-head small{color:var(--mute)}
+.group-head strong{font:700 22px 'Chakra Petch',sans-serif}
+.group-acts{margin-top:8px}
+@media(max-width:820px){.snk-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.snk-stats .inv-new{grid-column:1/-1}}
+.acts .btn svg{vertical-align:-4px;margin-right:6px}
+.ticket{background:#fff;color:#111;border-radius:6px;padding:16px 14px;font:13px/1.45 'Courier New',ui-monospace,monospace;margin-bottom:14px}
+.ticket header{text-align:center;border-bottom:1px dashed #888;padding-bottom:8px;margin-bottom:8px}
+.ticket header b{display:block;font:700 20px 'Chakra Petch',sans-serif;letter-spacing:.06em}
+.ticket header small{color:#555}
+.ticket h4{margin:0 0 6px;text-align:center;font-size:14px}
+.ticket h5{margin:10px 0 4px;font-size:13px;text-transform:uppercase;border-bottom:1px solid #bbb}
+.ticket dl{margin:0 0 6px}
+.ticket dl div{display:flex;justify-content:space-between;gap:8px}
+.ticket dt{color:#555}.ticket dd{margin:0;text-align:right}
+.ticket section{border-top:1px dashed #888;padding-top:4px;margin-top:6px}
+.ticket .tl{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
+.ticket .tl span:last-child{white-space:nowrap}
+.ticket .tl small{color:#666}
+.ticket .tl.sub{font-weight:700}
+.ticket .tl.tot{border-top:1px dashed #888;margin-top:8px;padding-top:6px;font:700 17px 'Courier New',monospace}
+.ticket footer{text-align:center;margin-top:12px;color:#555}
+@media print{
+  body *{visibility:hidden}
+  .ticket,.ticket *{visibility:visible}
+  .ticket{position:absolute;left:0;top:0;width:80mm;margin:0;border-radius:0;padding:4mm}
+  @page{margin:0}
+}
