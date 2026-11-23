@@ -4,8 +4,8 @@ Demo: **lunes 23 nov 2026, 7:30 pm**. Última actualización: domingo 22 nov 202
 
 ## Estado actual
 
-**Terminados y con commit: pasos 0 a 3.**
-**Siguiente: paso 4 (cobros).** Todavía no se ha escrito código de este paso; el árbol de trabajo está limpio en el commit `6775893`.
+**Terminados: pasos 0 a 5 y 7, más administración de estaciones (sin commit todavía).**
+**Siguiente: paso 6 (pantalla de TV `/estacion/:id`).** El socket público ya emite `StationUpdated`, `SessionWarning`, `SessionLocked` y `StationsChanged`; usa `socket` de `web/src/lib/socket.ts`. Ojo: `StationDto` ahora trae `outOfService` y el estado `out` ("Fuera de servicio") debe verse en la TV.
 
 | Paso | Qué es | Estado | Commit |
 |---|---|---|---|
@@ -13,10 +13,10 @@ Demo: **lunes 23 nov 2026, 7:30 pm**. Última actualización: domingo 22 nov 202
 | 1 | Backend: Prisma, seed, `GET /stations` | ✅ | `aa80807` |
 | 2 | Tablero React igual al prototipo | ✅ | `1e41530` |
 | 3 | Login usuario + contraseña, roles Admin/Recepción, pantalla Usuarios | ✅ | `6775893` |
-| 4 | Iniciar, extender, finalizar y cancelar (pago + bitácora en la misma transacción) | ⏭️ **siguiente** | — |
-| 5 | Ticker de aviso/bloqueo en el servidor + Socket.IO | pendiente | — |
-| 6 | Pantalla de TV `/estacion/:id` con semáforo LED, en tiempo real | pendiente | — |
-| 7 | Bitácora con buscador + corte de caja del turno | pendiente | — |
+| 4 | Iniciar, extender, finalizar y cancelar (pago + bitácora en la misma transacción) | ✅ | — |
+| 5 | Ticker de aviso/bloqueo en el servidor + Socket.IO | ✅ | — |
+| 6 | Pantalla de TV `/estacion/:id` con semáforo LED, en tiempo real | ⏭️ **siguiente** | — |
+| 7 | Bitácora con buscador + corte de caja del turno | ✅ | — |
 
 > Cambio de alcance pedido el 22 nov: login por **usuario + contraseña** (ya no PIN), roles **Admin y Recepción** (sin Encargado), y solo el admin registra usuarios. CLAUDE.md ya está actualizado. Por eso los pasos se recorrieron uno.
 

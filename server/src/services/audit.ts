@@ -1,4 +1,4 @@
-import type { Tx } from '../db.js';
+import { prisma, type Tx } from '../db.js';
 import type { AuditDto } from '../types.js';
 
 export interface AuditInput {
@@ -44,4 +44,28 @@ export function toAuditDto(row: {
     detail: row.detail,
     amountCents: row.amountCents,
   };
+}
+
+const AUDIT_LIMIT = 300;
+
+/** Latest entries first; `q` matches action, detail, employee or station name. */
+export async function listAudit(q: string): Promise<AuditDto[]> {
+  const rows = await prisma.auditLog.findMany({
+    where: q
+      ? {
+          OR: [
+            { action: { contains: q } },
+            { detail: { contains: q } },
+            { employee: { name: { contains: q } } },
+            { station: { name: { contains: q } } },
+            // The system user has no employee row, so match its label by hand.
+            ...('sistema'.includes(q.toLowerCase()) ? [{ employeeId: null }] : []),
+          ],
+        }
+      : undefined,
+    orderBy: { id: 'desc' },
+    take: AUDIT_LIMIT,
+    include: { employee: { select: { name: true } }, station: { select: { name: true } } },
+  });
+  return rows.map(toAuditDto);
 }

@@ -11,12 +11,14 @@ datasource db {
 }
 
 model Station {
-  id          Int           @id @default(autoincrement())
-  name        String
-  consoleType String // Xbox | PS5 | Switch2
-  order       Int
-  sessions    PlaySession[]
-  auditLogs   AuditLog[]
+  id           Int           @id @default(autoincrement())
+  name         String
+  consoleType  String // Xbox | PS5 | Switch2
+  order        Int
+  active       Boolean       @default(true) // false = removed from the board (history is kept)
+  outOfService Boolean       @default(false) // visible but cannot start sessions
+  sessions     PlaySession[]
+  auditLogs    AuditLog[]
 }
 
 model Employee {

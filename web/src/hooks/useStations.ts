@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { SettingsDto, StationDto, StationsResponse } from '@shared';
 import { api } from '../lib/api';
+import { socket } from '../lib/socket';
 import { syncServerTime } from '../lib/time';
 
+/** Stations from REST, kept live by Socket.IO. Reloads everything after a reconnect to catch missed events. */
 export function useStations() {
   const [stations, setStations] = useState<StationDto[]>([]);
   const [settings, setSettings] = useState<SettingsDto | null>(null);
@@ -27,7 +29,25 @@ export function useStations() {
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    let first = true;
+    const onConnect = () => {
+      if (first) first = false;
+      else void reload();
+    };
+    socket.on('connect', onConnect);
+    socket.on('StationUpdated', applyStation);
+    const onListChanged = () => void reload();
+    socket.on('StationsChanged', onListChanged);
+    socket.on('ServerTime', ({ nowUtc }) => syncServerTime(nowUtc));
+    socket.connect();
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('StationUpdated', applyStation);
+      socket.off('StationsChanged', onListChanged);
+      socket.off('ServerTime');
+      socket.disconnect();
+    };
+  }, [reload, applyStation]);
 
   return { stations, settings, error, reload, applyStation };
 }

@@ -26,3 +26,12 @@ const longDate = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numer
 export const hhmm = (t: string | number) => hm.format(new Date(t));
 export const hhmmss = (t: number) => hms.format(new Date(t));
 export const dateLong = (t: number) => longDate.format(new Date(t));
+
+const stampDay = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: TZ });
+const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: TZ });
+
+/** "14:05" for today, "22 nov 14:05" for earlier days (business time zone). */
+export function stamp(t: string | number, nowMs: number): string {
+  const d = new Date(t);
+  return ymd.format(d) === ymd.format(new Date(nowMs)) ? hm.format(d) : `${stampDay.format(d)} ${hm.format(d)}`;
+}

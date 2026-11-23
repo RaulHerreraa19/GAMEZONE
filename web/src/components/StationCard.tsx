@@ -33,7 +33,7 @@ export function StationCard({ station: st, state, now, onAction }: Props) {
           </div>
           <span className="st">{STATE_LABEL[state]}</span>
         </div>
-        <div className="time">{state === 'free' ? 'Libre' : state === 'locked' ? '00:00' : fmtCountdown(rem)}</div>
+        <div className="time">{state === 'out' ? 'Fuera de servicio' : state === 'free' ? 'Libre' : state === 'locked' ? '00:00' : fmtCountdown(rem)}</div>
         <div className="bar">
           <i style={{ width: pct + '%' }} />
         </div>
@@ -45,13 +45,13 @@ export function StationCard({ station: st, state, now, onAction }: Props) {
               Termina {hhmm(s.endUtc)} · {s.employeeName}
             </>
           ) : (
-            <>{CONSOLE_LABEL[st.consoleType]} · lista para jugar</>
+            <>{state === 'out' ? 'No disponible por ahora' : <>{CONSOLE_LABEL[st.consoleType]} · lista para jugar</>}</>
           )}
         </div>
         <div className="acts">
-          {state === 'free' ? (
+          {state === 'out' ? null : state === 'free' ? (
             <button className="btn pri" onClick={() => onAction('start', st)}>
-              Iniciar sesión
+              Iniciar
             </button>
           ) : (
             <>

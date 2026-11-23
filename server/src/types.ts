@@ -12,7 +12,7 @@ export type PayMethod = (typeof PAY_METHODS)[number];
 
 export type PaymentKind = 'Session' | 'Extension' | 'Refund' | 'Snack';
 export type EndReason = 'Completed' | 'EndedEarly' | 'Cancelled';
-export type StationState = 'free' | 'playing' | 'warning' | 'locked';
+export type StationState = 'free' | 'playing' | 'warning' | 'locked' | 'out';
 
 export interface SessionDto {
   id: number;
@@ -31,6 +31,8 @@ export interface StationDto {
   name: string;
   consoleType: ConsoleType;
   order: number;
+  active: boolean;
+  outOfService: boolean;
   session: SessionDto | null;
 }
 
@@ -110,6 +112,8 @@ export interface ServerToClientEvents {
   SessionLocked: (p: { stationId: number }) => void;
   AuditAppended: (entry: AuditDto) => void;
   ShiftChanged: () => void;
+  /** A station was added, removed or put in/out of service: clients reload the list. */
+  StationsChanged: () => void;
   ServerTime: (p: { nowUtc: string }) => void;
 }
 
@@ -118,6 +122,9 @@ export const ROLE_LABEL: Record<Role, string> = { Admin: 'Administrador', Recept
 export const METHOD_LABEL: Record<PayMethod, string> = { Cash: 'Efectivo', Card: 'Tarjeta', Transfer: 'Transferencia' };
 
 export const MINUTE_MS = 60_000;
+
+/** Longest time that can be sold in one charge (custom time). */
+export const MAX_CUSTOM_MINUTES = 480;
 
 /** All money is integer cents: rate × players × minutes / 60. */
 export function priceCents(rateCentsPerPersonHour: number, players: number, minutes: number): number {
@@ -130,11 +137,12 @@ export function warnMinutesFor(paidMinutes: number, s: Pick<SettingsDto, 'warnMi
 }
 
 export function stationState(
-  session: Pick<SessionDto, 'endUtc' | 'lockedAt' | 'paidMinutes'> | null,
+  station: Pick<StationDto, 'outOfService'> & { session: Pick<SessionDto, 'endUtc' | 'lockedAt' | 'paidMinutes'> | null },
   nowMs: number,
   s: Pick<SettingsDto, 'warnMinutes' | 'warnMinutesShort' | 'shortThreshold'>,
 ): StationState {
-  if (!session) return 'free';
+  const session = station.session;
+  if (!session) return station.outOfService ? 'out' : 'free';
   const left = Date.parse(session.endUtc) - nowMs;
   if (session.lockedAt || left <= 0) return 'locked';
   if (left <= warnMinutesFor(session.paidMinutes, s) * MINUTE_MS) return 'warning';

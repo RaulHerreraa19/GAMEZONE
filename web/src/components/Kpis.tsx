@@ -5,7 +5,7 @@ import { money } from '../lib/money';
 import { fmtCountdown } from '../lib/time';
 import { IcCash, IcClock, IcLock, IcPad } from './icons';
 
-const COL: Record<StationState, string> = { free: '#343a45', playing: 'var(--play)', warning: 'var(--warn)', locked: 'var(--lock)' };
+const COL: Record<StationState, string> = { free: '#343a45', out: '#20242b', playing: 'var(--play)', warning: 'var(--warn)', locked: 'var(--lock)' };
 
 interface Props {
   stations: StationDto[];
@@ -32,15 +32,17 @@ function sparkLine(summary: ShiftSummaryDto | null, now: number): string {
   return pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
 }
 
-function arc(i: number) {
-  const a1 = ((-90 + i * 45 + 3) * Math.PI) / 180;
-  const a2 = ((-90 + i * 45 + 42) * Math.PI) / 180;
+function arc(i: number, n: number) {
+  const step = 360 / n;
+  const a1 = ((-90 + i * step + 3) * Math.PI) / 180;
+  const a2 = ((-90 + (i + 1) * step - 3) * Math.PI) / 180;
   const r = 38;
   return `M${46 + r * Math.cos(a1)} ${46 + r * Math.sin(a1)}A${r} ${r} 0 0 1 ${46 + r * Math.cos(a2)} ${46 + r * Math.sin(a2)}`;
 }
 
 export function Kpis({ stations, states, summary, now }: Props) {
-  const busy = states.filter((k) => k !== 'free').length;
+  const inService = states.filter((k) => k !== 'out').length;
+  const busy = states.filter((k) => k !== 'free' && k !== 'out').length;
   const count = (k: StationState) => states.filter((x) => x === k).length;
   const warn = stations.filter((_, i) => states[i] === 'warning');
   const lock = stations.filter((_, i) => states[i] === 'locked');
@@ -60,13 +62,13 @@ export function Kpis({ stations, states, summary, now }: Props) {
       <article className="kpi" style={{ '--k': 'var(--ps)' } as CSSProperties}>
         <div className="kh"><span className="ic"><IcPad /></span><span className="lab">Ocupación</span></div>
         <div className="occ">
-          <svg className="ring" viewBox="0 0 92 92" role="img" aria-label={`${busy} de ${stations.length} estaciones ocupadas`}>
-            {states.map((k, i) => <path key={i} d={arc(i)} fill="none" stroke={COL[k]} strokeWidth="9" strokeLinecap="round" />)}
-            <text x="46" y="50" textAnchor="middle" fontFamily="Chakra Petch,sans-serif" fontWeight="700" fontSize="22" fill="var(--ink)">{busy}/{stations.length}</text>
+          <svg className="ring" viewBox="0 0 92 92" role="img" aria-label={`${busy} de ${inService} estaciones ocupadas`}>
+            {states.map((k, i) => <path key={i} d={arc(i, states.length)} fill="none" stroke={COL[k]} strokeWidth="9" strokeLinecap="round" />)}
+            <text x="46" y="50" textAnchor="middle" fontFamily="Chakra Petch,sans-serif" fontWeight="700" fontSize="22" fill="var(--ink)">{busy}/{inService}</text>
             <text x="46" y="64" textAnchor="middle" fontFamily="Inter,sans-serif" fontSize="10" fill="var(--mute)">ocupadas</text>
           </svg>
           <div className="legend">
-            {([['En juego', 'playing'], ['Por terminar', 'warning'], ['Bloqueadas', 'locked'], ['Libres', 'free']] as const).map(([l, k]) => (
+            {([['En juego', 'playing'], ['Por terminar', 'warning'], ['Bloqueadas', 'locked'], ['Libres', 'free'], ['Fuera de servicio', 'out']] as const).filter(([, k]) => k !== 'out' || count(k) > 0).map(([l, k]) => (
               <span key={k}><i style={{ background: COL[k] }} />{l}<b>{count(k)}</b></span>
             ))}
           </div>
