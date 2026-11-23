@@ -4,6 +4,8 @@ import express from 'express';
 import { config } from './config.js';
 import { prisma } from './db.js';
 import { errorHandler } from './lib/http.js';
+import { authRouter } from './routes/auth.js';
+import { employeesRouter } from './routes/employees.js';
 import { publicRouter } from './routes/public.js';
 import { stationsRouter } from './routes/stations.js';
 
@@ -15,6 +17,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, serverNowUtc: new Date().toISOString() });
 });
 app.use('/api', publicRouter);
+app.use('/api', authRouter);
+app.use('/api', employeesRouter);
 app.use('/api', stationsRouter);
 app.use(errorHandler);
 

@@ -20,16 +20,17 @@ model Station {
 }
 
 model Employee {
-  id        Int           @id @default(autoincrement())
-  name      String        @unique
-  role      String // Admin | Manager | Cashier
-  roleLabel String
-  pinHash   String
-  active    Boolean       @default(true)
-  sessions  PlaySession[]
-  payments  Payment[]
-  auditLogs AuditLog[]
-  shifts    Shift[]
+  id           Int           @id @default(autoincrement())
+  name         String
+  username     String        @unique
+  role         String // Admin | Reception
+  passwordHash String
+  active       Boolean       @default(true)
+  createdUtc   DateTime      @default(now())
+  sessions     PlaySession[]
+  payments     Payment[]
+  auditLogs    AuditLog[]
+  shifts       Shift[]
 }
 
 model PlaySession {
@@ -85,13 +86,13 @@ model AuditLog {
 }
 
 model Shift {
-  id          Int       @id @default(autoincrement())
-  employeeId  Int
-  employee    Employee  @relation(fields: [employeeId], references: [id])
-  openedUtc   DateTime  @default(now())
-  closedUtc   DateTime?
-  totalCents  Int?
-  payments    Payment[]
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  openedUtc  DateTime  @default(now())
+  closedUtc  DateTime?
+  totalCents Int?
+  payments   Payment[]
 }
 
 model Setting {

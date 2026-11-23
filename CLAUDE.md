@@ -21,9 +21,9 @@ Toda la interfaz, los mensajes y los textos visibles van en **español de Méxic
 3. Alerta 5 minutos antes del vencimiento (1 minuto en sesiones de 10 min o menos).
 4. Agregar tiempo (extensiones) cobrándolo.
 5. Registrar todas las sesiones, pagos, extensiones, cancelaciones y modificaciones, con el empleado responsable.
-6. **Ningún tiempo de juego se activa sin un pago registrado.** Las cortesías y cancelaciones requieren PIN de administrador y motivo obligatorio.
+6. **Ningún tiempo de juego se activa sin un pago registrado.** Las cortesías y cancelaciones requieren la contraseña de un administrador y motivo obligatorio.
 7. Reportes diarios, semanales y mensuales: horas vendidas por estación e ingresos por tipo de consola. Exportar a Excel y PDF (Fase 3).
-8. Roles: **Administrador, Encargado y Cajero**, con login por usuario + PIN.
+8. Roles: **Administrador y Recepción**, con login obligatorio por usuario + contraseña. Solo el administrador da de alta, edita y desactiva usuarios.
 9. Supervisión remota desde celular o PC (Fase 3; en la demo basta con ver el panel en vivo desde otro dispositivo de la red o por un túnel).
 10. POS de snacks y bebidas: productos, venta ligada a la cuenta del jugador, ticket y corte de caja por turno (venta básica en Fase 1; inventario en Fase 3).
 11. Bloqueo automático de la imagen de la consola al vencer el tiempo, **sin cortar nunca la electricidad** (Fase 2, con hardware).
@@ -41,12 +41,12 @@ Toda la interfaz, los mensajes y los textos visibles van en **español de Méxic
 
 Construir **solo** lo necesario para la demostración, pero con la arquitectura definitiva (no es código desechable):
 
-- Login con usuario + PIN (datos semilla: `Daniela R.` cajera PIN 1234, `Administrador` PIN 0000).
+- Login obligatorio con usuario + contraseña. El seed crea solo un administrador de ejemplo (`admin` / `admin123`); él registra a los usuarios de Recepción en la pantalla **Usuarios** (alta, rol, activar/desactivar, cambiar contraseña).
 - Tablero de 8 estaciones con estado, cuenta regresiva, barra de progreso, jugadores, importe y empleado.
 - Modal "Iniciar sesión": jugadores 1/2, paquete, forma de pago (Efectivo, Tarjeta, Transferencia), total calculado; "Cobrar e iniciar".
 - Alerta de por terminar (toast + sonido) y bloqueo al llegar a cero.
 - Extender (+15, +30, +60 min). Si la estación estaba bloqueada, el tiempo cuenta desde ahora y se desbloquea.
-- Finalizar sesión y cancelar (motivo obligatorio; PIN de administrador si el usuario es cajero; registra devolución negativa).
+- Finalizar sesión y cancelar (motivo obligatorio; contraseña de un administrador si el usuario es de Recepción; registra devolución negativa).
 - Bitácora con buscador y corte de caja del turno (total, por forma de pago, por tipo de consola, horas por estación).
 - **Pantalla de estación** `/estacion/:id` que simula la TV: "Estación disponible" / imagen de juego simulada / "Tiempo terminado – pasa a caja para extender tu tiempo", con el semáforo LED (verde, ámbar, rojo). Se abre en otra ventana o en otro dispositivo y se actualiza en tiempo real.
 - **Tiempo real entre dispositivos vía Socket.IO**: si abro el panel en el celular, veo los mismos cambios al instante.
@@ -90,7 +90,7 @@ Fuera de alcance para la demo: reportes semanales y mensuales, exportaciones, in
 ## Modelo de dominio
 
 - `Station`: Id, Name ("Xbox 1"), ConsoleType (Xbox | PS5 | Switch2), Order.
-- `Employee`: Id, Name, Role (Admin | Manager | Cashier), PinHash.
+- `Employee`: Id, Name, Username (único), Role (Admin | Reception), PasswordHash, Active, CreatedUtc.
 - `PlaySession`: Id, StationId, Players (1–2), PaidMinutes, StartUtc, EndUtc, WarnedAt?, LockedAt?, EndedAt?, EndReason (Completed | EndedEarly | Cancelled), EmployeeId.
 - `Payment`: Id, SessionId?, AmountCents (entero en centavos; negativo en devoluciones), Method (Cash | Card | Transfer), Minutes, Kind (Session | Extension | Refund | Snack), EmployeeId, CreatedUtc.
 - `AuditLog`: Id, CreatedUtc, EmployeeId? (null = "Sistema"), StationId?, Action, Detail, Amount. **Solo inserción; nunca se edita ni se borra.**
@@ -105,19 +105,20 @@ Fuera de alcance para la demo: reportes semanales y mensuales, exportaciones, in
 - No se puede iniciar una sesión sin un `Payment` en la misma transacción.
 - Extender una sesión bloqueada: `EndUtc = now + minutos`, limpia `LockedAt` y `WarnedAt`.
 - Extender una sesión activa: `EndUtc += minutos`, limpia `WarnedAt`.
-- Cancelar: motivo obligatorio; si el usuario no es Admin, requiere el PIN de un Admin. Genera un `Payment` negativo y libera la estación.
+- Cancelar: motivo obligatorio; si el usuario no es Admin, requiere la contraseña de un Admin activo. Genera un `Payment` negativo y libera la estación.
 - Cada acción de un empleado escribe en `AuditLog` dentro de la misma transacción.
-- Los PIN se guardan con hash (`bcryptjs`), nunca en texto plano. Las operaciones que escriben varias tablas usan `prisma.$transaction`.
+- Las contraseñas se guardan con hash (`bcryptjs`), nunca en texto plano; mínimo 6 caracteres. Un usuario desactivado no puede entrar y su token deja de servir. Las operaciones que escriben varias tablas usan `prisma.$transaction`.
 
 ## API y tiempo real (propuesta inicial)
 
 REST (`/api`):
-- `POST /auth/pin` → token simple (JWT o cookie) con el empleado y su rol.
+- `POST /auth/login` {username, password} → JWT con el empleado y su rol · `GET /auth/me`
+- `GET /employees` · `POST /employees` · `PATCH /employees/{id}` · `POST /employees/{id}/password` (solo Admin)
 - `GET /stations` → estaciones con su sesión activa y `serverNowUtc`.
 - `POST /stations/{id}/sessions` {players, minutes, method}
 - `POST /sessions/{id}/extend` {minutes, method}
 - `POST /sessions/{id}/end`
-- `POST /sessions/{id}/cancel` {reason, adminPin?}
+- `POST /sessions/{id}/cancel` {reason, adminPassword?}
 - `GET /audit?q=` · `GET /shift/current/summary` · `POST /shift/close`
 
 Socket.IO (namespace por defecto), eventos al cliente: `StationUpdated(stationDto)`, `SessionWarning(stationId, minutesLeft)`, `SessionLocked(stationId)`, `AuditAppended(entry)`.
@@ -134,7 +135,7 @@ Socket.IO (namespace por defecto), eventos al cliente: `StationUpdated(stationDt
 
 - Backend: `cd server && npm install && npm run dev` (`tsx watch src/index.ts`; escucha en `0.0.0.0` para probar desde el celular).
 - Frontend: `cd web && npm install && npm run dev -- --host`.
-- Base de datos: `npx prisma migrate dev --name <nombre>` y `npx prisma db seed` (8 estaciones, 2 empleados).
+- Base de datos: `npx prisma migrate dev --name <nombre>` y `npx prisma db seed` (8 estaciones, 1 administrador).
 - Túnel para mostrar desde el celular del cliente: `cloudflared tunnel --url http://localhost:<puerto>`.
 
 ## Qué no hacer
@@ -147,7 +148,7 @@ Socket.IO (namespace por defecto), eventos al cliente: `StationUpdated(stationDt
 
 ## Definición de terminado (demo)
 
-1. Puedo iniciar sesión con PIN, iniciar el paquete "Demo 3 min" en una estación, ver la alerta y el bloqueo, y extender para desbloquear.
+1. Como admin registro un usuario de Recepción, entro con él, inicio el paquete "Demo 3 min" en una estación, ver la alerta y el bloqueo, y extender para desbloquear.
 2. La pantalla `/estacion/:id` cambia sola en otra ventana o dispositivo.
 3. La bitácora y el corte reflejan todo lo anterior con el empleado correcto.
 4. Reinicio el servidor y las sesiones siguen ahí con su tiempo correcto.

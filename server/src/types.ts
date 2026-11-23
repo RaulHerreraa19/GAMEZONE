@@ -4,7 +4,7 @@
 export const CONSOLE_TYPES = ['Xbox', 'PS5', 'Switch2'] as const;
 export type ConsoleType = (typeof CONSOLE_TYPES)[number];
 
-export const ROLES = ['Admin', 'Manager', 'Cashier'] as const;
+export const ROLES = ['Admin', 'Reception'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const PAY_METHODS = ['Cash', 'Card', 'Transfer'] as const;
@@ -56,8 +56,9 @@ export interface SettingsDto {
 export interface EmployeeDto {
   id: number;
   name: string;
+  username: string;
   role: Role;
-  roleLabel: string;
+  active: boolean;
 }
 
 export interface AuthResponse {
@@ -113,6 +114,7 @@ export interface ServerToClientEvents {
 }
 
 export const CONSOLE_LABEL: Record<ConsoleType, string> = { Xbox: 'Xbox', PS5: 'PS5', Switch2: 'Switch 2' };
+export const ROLE_LABEL: Record<Role, string> = { Admin: 'Administrador', Reception: 'Recepción' };
 export const METHOD_LABEL: Record<PayMethod, string> = { Cash: 'Efectivo', Card: 'Tarjeta', Transfer: 'Transferencia' };
 
 export const MINUTE_MS = 60_000;

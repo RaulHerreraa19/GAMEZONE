@@ -1,4 +1,5 @@
-// Example seed data for the demo. Names and PINs are placeholders, not real client data.
+// Example seed data for the demo. Only one example admin is created; the admin registers
+// every other user from the Usuarios screen. Change the password before going live.
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { DEFAULT_SETTINGS } from '../src/services/settings.js';
@@ -16,10 +17,7 @@ const STATIONS = [
   { id: 8, name: 'Switch 2 · 2', consoleType: 'Switch2' },
 ];
 
-const EMPLOYEES = [
-  { name: 'Daniela R.', role: 'Cashier', roleLabel: 'Cajera · turno vespertino', pin: '1234' },
-  { name: 'Administrador', role: 'Admin', roleLabel: 'Administrador', pin: '0000' },
-];
+const ADMIN = { name: 'Administrador', username: 'admin', password: process.env.SEED_ADMIN_PASSWORD ?? 'admin123' };
 
 async function main() {
   for (const [i, st] of STATIONS.entries()) {
@@ -29,18 +27,16 @@ async function main() {
       create: { ...st, order: i + 1 },
     });
   }
-  for (const e of EMPLOYEES) {
-    const pinHash = await bcrypt.hash(e.pin, 10);
-    await prisma.employee.upsert({
-      where: { name: e.name },
-      update: { role: e.role, roleLabel: e.roleLabel, pinHash, active: true },
-      create: { name: e.name, role: e.role, roleLabel: e.roleLabel, pinHash },
-    });
-  }
+  // Never overwrite an existing admin's password on re-seed.
+  await prisma.employee.upsert({
+    where: { username: ADMIN.username },
+    update: { role: 'Admin', active: true },
+    create: { name: ADMIN.name, username: ADMIN.username, role: 'Admin', passwordHash: await bcrypt.hash(ADMIN.password, 10) },
+  });
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     await prisma.setting.upsert({ where: { key }, update: { value: JSON.stringify(value) }, create: { key, value: JSON.stringify(value) } });
   }
-  console.log(`Seed listo: ${STATIONS.length} estaciones, ${EMPLOYEES.length} empleados.`);
+  console.log(`Seed listo: ${STATIONS.length} estaciones y el usuario administrador "${ADMIN.username}".`);
 }
 
 main()

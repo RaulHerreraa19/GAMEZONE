@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import type { EmployeeDto } from '@shared';
-import { IcGrid, IcLog, IcRegister } from './icons';
+import { ROLE_LABEL } from '@shared';
+import { IcGrid, IcLog, IcRegister, IcUsers } from './icons';
 
-export type View = 'est' | 'bit' | 'cor';
+export type View = 'est' | 'bit' | 'cor' | 'usr';
 
 interface Props {
   view: View;
@@ -45,6 +46,7 @@ export function Sidebar({ view, onView, alerts, shiftLabel, employee, onUser }: 
         {tab('est', 'Estaciones', <IcGrid />, alerts)}
         {tab('bit', 'Bitácora', <IcLog />)}
         {tab('cor', 'Corte de caja', <IcRegister />)}
+        {employee?.role === 'Admin' && tab('usr', 'Usuarios', <IcUsers />)}
       </nav>
       <div className="side-foot">
         <div className="shift">
@@ -55,7 +57,7 @@ export function Sidebar({ view, onView, alerts, shiftLabel, employee, onUser }: 
           <span className="av">{employee ? initials(employee.name) : '—'}</span>
           <span>
             <span>{employee?.name ?? '—'}</span>
-            <small>{employee?.roleLabel ?? 'Cambiar usuario'}</small>
+            <small>{employee ? ROLE_LABEL[employee.role] : ''} · Cerrar sesión</small>
           </span>
         </button>
       </div>

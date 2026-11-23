@@ -10,10 +10,11 @@ CREATE TABLE "Station" (
 CREATE TABLE "Employee" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
     "role" TEXT NOT NULL,
-    "roleLabel" TEXT NOT NULL,
-    "pinHash" TEXT NOT NULL,
-    "active" BOOLEAN NOT NULL DEFAULT true
+    "passwordHash" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdUtc" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
@@ -79,7 +80,7 @@ CREATE TABLE "Setting" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Employee_name_key" ON "Employee"("name");
+CREATE UNIQUE INDEX "Employee_username_key" ON "Employee"("username");
 
 -- CreateIndex
 CREATE INDEX "PlaySession_stationId_endedAt_idx" ON "PlaySession"("stationId", "endedAt");
