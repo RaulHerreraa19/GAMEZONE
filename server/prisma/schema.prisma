@@ -68,8 +68,35 @@ model Payment {
   employeeId  Int
   employee    Employee     @relation(fields: [employeeId], references: [id])
   createdUtc  DateTime     @default(now())
+  items       SaleItem[]
 
   @@index([shiftId])
+}
+
+// Snack or drink for sale. Deactivate instead of deleting: SaleItem keeps the history.
+model Product {
+  id         Int        @id @default(autoincrement())
+  name       String
+  icon       String     @default("generic")
+  priceCents Int
+  stock      Int        @default(0)
+  active     Boolean    @default(true)
+  createdUtc DateTime   @default(now())
+  items      SaleItem[]
+}
+
+// One line of a Snack payment. Name and price are copied so later edits never rewrite history.
+model SaleItem {
+  id             Int     @id @default(autoincrement())
+  paymentId      Int
+  payment        Payment @relation(fields: [paymentId], references: [id])
+  productId      Int
+  product        Product @relation(fields: [productId], references: [id])
+  name           String
+  unitPriceCents Int
+  quantity       Int
+
+  @@index([paymentId])
 }
 
 // Insert-only. Never update or delete rows.

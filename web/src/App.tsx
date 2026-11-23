@@ -8,16 +8,18 @@ import type { CardAction } from './components/StationCard';
 import { Toasts, useToasts } from './components/Toasts';
 import { useAuth } from './hooks/useAuth';
 import { useNow } from './hooks/useNow';
+import { useProducts } from './hooks/useProducts';
 import { useStations } from './hooks/useStations';
 import { useSummary } from './hooks/useSummary';
 import { beep } from './lib/beep';
 import { money } from './lib/money';
 import { socket } from './lib/socket';
 import { dateLong, hhmmss } from './lib/time';
-import { CancelModal, EndModal, ExtendModal, StartModal } from './modals/SessionModals';
+import { CancelModal, EndModal, ExtendModal, SnackModal, StartModal } from './modals/SessionModals';
 import { Dashboard } from './pages/Dashboard';
 import { BitacoraPage } from './pages/BitacoraPage';
 import { CortePage } from './pages/CortePage';
+import { InventoryPage } from './pages/InventoryPage';
 import { Login } from './pages/Login';
 import { StationsAdminPage } from './pages/StationsAdminPage';
 import { UsersPage } from './pages/UsersPage';
@@ -26,6 +28,7 @@ const TITLES: Record<View, [string, string]> = {
   est: ['Estaciones', '8 salas · tarifa $50 por persona por hora'],
   bit: ['Bitácora', 'Cada movimiento con hora y empleado responsable'],
   cor: ['Corte de caja', 'Resumen del turno en curso'],
+  inv: ['Inventario', 'Snacks y bebidas: precios y existencias'],
   sal: ['Salas', 'Agrega, apaga o desactiva estaciones de trabajo'],
   usr: ['Usuarios', 'Altas, roles y accesos del equipo'],
 };
@@ -43,6 +46,7 @@ function Shell({ employee }: { employee: EmployeeDto }) {
   const [askLogout, setAskLogout] = useState(false);
   const { stations, settings, error, applyStation } = useStations();
   const { summary, reload: reloadSummary } = useSummary();
+  const { products, reload: reloadProducts } = useProducts();
   const [modal, setModal] = useState<{ action: Exclude<CardAction, 'tv'>; stationId: number } | null>(null);
   const { items: toastItems, toast } = useToasts();
   const now = useNow();
@@ -86,11 +90,12 @@ function Shell({ employee }: { employee: EmployeeDto }) {
   const onDone = (dto: StationDto, message: ReactNode, kind: '' | 'warn' | 'lock' = '') => {
     applyStation(dto);
     void reloadSummary();
+    void reloadProducts();
     toast(message, kind);
   };
   const modalStation = modal ? stations.find((s) => s.id === modal.stationId) : undefined;
 
-  const adminOnly = view === 'usr' || view === 'sal';
+  const adminOnly = view === 'usr' || view === 'sal' || view === 'inv';
   const current = adminOnly && employee.role !== 'Admin' ? 'est' : view;
   const [title, subtitle] = TITLES[current];
   const sub = current === 'est' ? `${stations.length} salas · tarifa ${money(settings?.rateCentsPerPersonHour ?? 5000)} por persona por hora` : subtitle;
@@ -115,14 +120,16 @@ function Shell({ employee }: { employee: EmployeeDto }) {
         {current === 'cor' && (
           <CortePage summary={summary} activeSessions={stations.filter((s) => s.session).length} onClosed={() => void reloadSummary()} onToast={toast} />
         )}
-        {current === 'sal' && <StationsAdminPage onToast={toast} />}
+        {current === 'inv' && <InventoryPage products={products} onChanged={() => void reloadProducts()} onToast={toast} />}
+        {current === 'sal' &&<StationsAdminPage onToast={toast} />}
       </main>
       {modal && modalStation && settings && (modal.action === 'start' || modalStation.session) && (
         <>
-          {modal.action === 'start' && <StartModal station={modalStation} settings={settings} employee={employee} onDone={onDone} onClose={closeModal} />}
-          {modal.action === 'extend' && <ExtendModal station={modalStation} settings={settings} employee={employee} onDone={onDone} onClose={closeModal} />}
-          {modal.action === 'end' && <EndModal station={modalStation} settings={settings} employee={employee} onDone={onDone} onClose={closeModal} />}
-          {modal.action === 'cancel' && <CancelModal station={modalStation} settings={settings} employee={employee} onDone={onDone} onClose={closeModal} />}
+          {modal.action === 'start' && <StartModal station={modalStation} settings={settings} products={products} employee={employee} onDone={onDone} onClose={closeModal} />}
+          {modal.action === 'extend' && <ExtendModal station={modalStation} settings={settings} products={products} employee={employee} onDone={onDone} onClose={closeModal} />}
+          {modal.action === 'snacks' && <SnackModal station={modalStation} settings={settings} products={products} employee={employee} onDone={onDone} onClose={closeModal} />}
+          {modal.action === 'end' &&<EndModal station={modalStation} settings={settings} products={products} employee={employee} onDone={onDone} onClose={closeModal} />}
+          {modal.action === 'cancel' && <CancelModal station={modalStation} settings={settings} products={products} employee={employee} onDone={onDone} onClose={closeModal} />}
         </>
       )}
       {askLogout && (

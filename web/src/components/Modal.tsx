@@ -11,15 +11,19 @@ interface Props {
 export function Modal({ title, sub, onClose, children }: Props) {
   const sheet = useRef<HTMLDivElement>(null);
 
+  // Parents pass a fresh onClose on every render; keep it in a ref so the effect (and the
+  // initial focus) runs once on mount instead of stealing focus back on each re-render.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
-    const first = sheet.current?.querySelector<HTMLElement>('input,textarea,button');
-    first?.focus();
+    sheet.current?.querySelector<HTMLElement>('input,textarea,button')?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') closeRef.current();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>

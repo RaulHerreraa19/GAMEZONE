@@ -61,6 +61,7 @@ export function CortePage({ summary, activeSessions, onClosed, onToast }: Props)
         <div className="box">
           <h3>Total del turno</h3>
           <div className="big">{money(s?.totalCents ?? 0)}</div>
+          {open && s.snackCents > 0 && <p className="note" style={{ margin: '8px 0 0' }}>Incluye {money(s.snackCents)} en snacks y bebidas.</p>}
           <p className="note">
             {open
               ? `${s.sessionCount} sesiones · ${s.extensionCount} extensiones · ${s.cancelCount} cancelaciones · abrió ${s.openedBy} a las ${hhmm(s.openedUtc!)}`

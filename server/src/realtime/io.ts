@@ -26,6 +26,9 @@ export function publishLocked(stationId: number) {
 export function publishStationsChanged() {
   io?.emit('StationsChanged');
 }
+export function publishProductsChanged() {
+  io?.to(STAFF_ROOM).emit('ProductsChanged');
+}
 export function publishServerTime() {
   io?.emit('ServerTime', { nowUtc: new Date().toISOString() });
 }

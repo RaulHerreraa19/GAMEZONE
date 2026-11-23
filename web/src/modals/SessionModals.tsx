@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import type { EmployeeDto, PackageOption, PayMethod, SettingsDto, StationDto } from '@shared';
+import type { EmployeeDto, PackageOption, ProductDto, PayMethod, SettingsDto, StationDto } from '@shared';
 import { MAX_CUSTOM_MINUTES, METHOD_LABEL, PAY_METHODS, priceCents, stationState } from '@shared';
 import { Chips, Modal } from '../components/Modal';
+import { SnackPicker, cartItems, cartTotal, type Cart } from '../components/SnackPicker';
 import { api } from '../lib/api';
 import { players } from '../lib/labels';
 import { money } from '../lib/money';
@@ -11,6 +12,7 @@ import { fmtCountdown, serverNow } from '../lib/time';
 export type ActionDone = (station: StationDto, message: ReactNode, kind?: '' | 'warn' | 'lock') => void;
 
 interface Props {
+  products: ProductDto[];
   station: StationDto;
   settings: SettingsDto;
   employee: EmployeeDto;
@@ -74,26 +76,33 @@ function useTimePicker(options: PackageOption[], defaultMinutes: number, title: 
   return { minutes, picker };
 }
 
-function Total({ cents }: { cents: number }) {
+function Total({ cents, detail }: { cents: number; detail?: string }) {
   return (
-    <div className="total">
-      <span>Total a cobrar</span>
-      <strong>{money(cents)}</strong>
-    </div>
+    <>
+      <div className="total">
+        <span>Total a cobrar</span>
+        <strong>{money(cents)}</strong>
+      </div>
+      {detail && <p className="total-lines">{detail}</p>}
+    </>
   );
 }
 
-export function StartModal({ station, settings, onDone, onClose }: Props) {
+export function StartModal({ station, settings, products, onDone, onClose }: Props) {
   const [nPlayers, setPlayers] = useState(1);
   const time = useTimePicker(settings.packages, 60, 'Tiempo');
   const [method, setMethod] = useState<PayMethod>('Cash');
+  const [cart, setCart] = useState<Cart>({});
   const { busy, error, submit } = useSubmit(onClose);
-  const total = time.minutes ? priceCents(settings.rateCentsPerPersonHour, nPlayers, time.minutes) : 0;
+  const timeCents = time.minutes ? priceCents(settings.rateCentsPerPersonHour, nPlayers, time.minutes) : 0;
+  const snackCents = cartTotal(products, cart);
+  const total = timeCents + snackCents;
 
   const go = () =>
     submit(async () => {
+      const snacks = cartItems(cart);
       const dto = await api<StationDto>(`/stations/${station.id}/sessions`, {
-        body: { players: nPlayers, minutes: time.minutes, method },
+        body: { players: nPlayers, minutes: time.minutes, method, snacks: snacks.length ? snacks : undefined },
       });
       onDone(dto, <><b>{station.name}</b> activa · {money(total)} cobrados.</>);
     });
@@ -103,9 +112,15 @@ export function StartModal({ station, settings, onDone, onClose }: Props) {
       <div className="lbl">Jugadores</div>
       <Chips options={[1, 2]} value={nPlayers} label={(n) => players(n)} onChange={setPlayers} />
       {time.picker}
+      {products.some((p) => p.active && p.stock > 0) && (
+        <>
+          <div className="lbl">Snacks y bebidas (opcional)</div>
+          <SnackPicker products={products} cart={cart} onChange={setCart} />
+        </>
+      )}
       <div className="lbl">Forma de pago</div>
       <Chips options={PAY_METHODS} value={method} label={(m) => METHOD_LABEL[m]} onChange={setMethod} />
-      <Total cents={total} />
+      <Total cents={total} detail={snackCents ? `Tiempo ${money(timeCents)} + snacks ${money(snackCents)}` : undefined} />
       <div className="err" role="alert">{error}</div>
       <div className="acts">
         <button className="btn" onClick={onClose}>Cancelar</button>
@@ -193,7 +208,7 @@ export function CancelModal({ station, employee, onDone, onClose }: Props) {
   };
 
   return (
-    <Modal title={`Cancelar · ${station.name}`} sub={`Se devuelven ${money(s.paidCents)} y queda registrado en la bitácora.`} onClose={onClose}>
+    <Modal title={`Cancelar · ${station.name}`} sub={`Se devuelven ${money(s.paidCents)} del tiempo y queda registrado en la bitácora.${s.snackCents ? ` Los snacks (${money(s.snackCents)}) no se devuelven.` : ''}`} onClose={onClose}>
       <div className="lbl"><label htmlFor="why">Motivo (obligatorio)</label></div>
       <textarea id="why" rows={3} style={{ width: '100%' }} placeholder="Ej. el control no funcionó" value={reason} onChange={(e) => setReason(e.target.value)} />
       {needsAdmin && (
@@ -206,6 +221,41 @@ export function CancelModal({ station, employee, onDone, onClose }: Props) {
       <div className="acts">
         <button className="btn" onClick={onClose}>Volver</button>
         <button className="btn danger" disabled={busy} onClick={go}>Cancelar y devolver</button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Adds snacks to a session in progress and charges them right away. */
+export function SnackModal({ station, products, onDone, onClose }: Props) {
+  const s = station.session!;
+  const [cart, setCart] = useState<Cart>({});
+  const [method, setMethod] = useState<PayMethod>('Cash');
+  const { busy, error, submit } = useSubmit(onClose);
+  const items = cartItems(cart);
+  const total = cartTotal(products, cart);
+
+  const go = () =>
+    submit(async () => {
+      const dto = await api<StationDto>(`/sessions/${s.id}/snacks`, { body: { method, items } });
+      onDone(dto, <><b>{station.name}</b>: snacks agregados · {money(total)} cobrados.</>);
+    });
+
+  return (
+    <Modal
+      title={`Snacks · ${station.name}`}
+      sub={`${players(s.players)} · se cobran ahora y no cambian el tiempo de juego.${s.snackCents ? ` Ya llevan ${money(s.snackCents)} en snacks.` : ''}`}
+      onClose={onClose}
+    >
+      <div className="lbl">Productos</div>
+      <SnackPicker products={products} cart={cart} onChange={setCart} />
+      <div className="lbl">Forma de pago</div>
+      <Chips options={PAY_METHODS} value={method} label={(m) => METHOD_LABEL[m]} onChange={setMethod} />
+      <Total cents={total} />
+      <div className="err" role="alert">{error}</div>
+      <div className="acts">
+        <button className="btn" onClick={onClose}>Cancelar</button>
+        <button className="btn pri" disabled={busy || items.length === 0} onClick={() => void go()}>Cobrar y agregar</button>
       </div>
     </Modal>
   );

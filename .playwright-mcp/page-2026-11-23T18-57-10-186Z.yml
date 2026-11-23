@@ -1,0 +1,10 @@
+- generic [ref=e4]:
+  - img "GAME ZONE · Videojuegos • Snacks" [ref=e5]
+  - heading "Panel de caja" [level=3] [ref=e6]
+  - paragraph [ref=e7]: Inicia sesión con el usuario que te dio el administrador.
+  - generic [ref=e8]: Usuario
+  - textbox "Usuario" [active] [ref=e9]
+  - generic [ref=e10]: Contraseña
+  - textbox "Contraseña" [ref=e11]
+  - alert [ref=e12]
+  - button "Entrar" [ref=e13] [cursor=pointer]

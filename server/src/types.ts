@@ -23,8 +23,49 @@ export interface SessionDto {
   warnedAt: string | null;
   lockedAt: string | null;
   employeeName: string;
+  /** Time payments only (session + extensions, net of refunds). Snacks are tracked apart. */
   paidCents: number;
+  snackCents: number;
 }
+
+// Icons offered when creating a product. The key is what gets stored; glyph/color are display only.
+export const PRODUCT_ICONS = [
+  { key: 'soda', glyph: '🥤', label: 'Refresco', color: '#ff5a6e' },
+  { key: 'water', glyph: '💧', label: 'Agua', color: '#5ac8ff' },
+  { key: 'energy', glyph: '⚡', label: 'Energética', color: '#c6ff3d' },
+  { key: 'coffee', glyph: '☕', label: 'Café', color: '#c08a5a' },
+  { key: 'chips', glyph: '🍟', label: 'Botana', color: '#ffb020' },
+  { key: 'popcorn', glyph: '🍿', label: 'Palomitas', color: '#ffd84d' },
+  { key: 'cookie', glyph: '🍪', label: 'Galletas', color: '#d9a066' },
+  { key: 'chocolate', glyph: '🍫', label: 'Chocolate', color: '#a0643c' },
+  { key: 'candy', glyph: '🍬', label: 'Dulce', color: '#ff6b8a' },
+  { key: 'nachos', glyph: '🧀', label: 'Nachos', color: '#ffc83d' },
+  { key: 'hotdog', glyph: '🌭', label: 'Hot dog', color: '#ff8a4d' },
+  { key: 'pizza', glyph: '🍕', label: 'Pizza', color: '#ff6b4d' },
+  { key: 'noodles', glyph: '🍜', label: 'Sopa', color: '#ff9a3d' },
+  { key: 'icecream', glyph: '🍦', label: 'Helado', color: '#ff9ad5' },
+  { key: 'nuts', glyph: '🥜', label: 'Cacahuates', color: '#c9a06b' },
+  { key: 'generic', glyph: '🛒', label: 'Otro', color: '#b026ff' },
+] as const;
+export type ProductIconKey = (typeof PRODUCT_ICONS)[number]['key'];
+export const PRODUCT_ICON_KEYS = PRODUCT_ICONS.map((i) => i.key) as [ProductIconKey, ...ProductIconKey[]];
+
+export interface ProductDto {
+  id: number;
+  name: string;
+  icon: ProductIconKey;
+  priceCents: number;
+  stock: number;
+  active: boolean;
+}
+
+export interface SnackItemInput {
+  productId: number;
+  quantity: number;
+}
+
+/** At or below this many units a product shows as "por agotarse". */
+export const LOW_STOCK = 5;
 
 export interface StationDto {
   id: number;
@@ -89,6 +130,7 @@ export interface ShiftSummaryDto {
   openedUtc: string | null;
   openedBy: string | null;
   totalCents: number;
+  snackCents: number;
   lastHourCents: number;
   chargeCount: number;
   sessionCount: number;
@@ -114,6 +156,8 @@ export interface ServerToClientEvents {
   ShiftChanged: () => void;
   /** A station was added, removed or put in/out of service: clients reload the list. */
   StationsChanged: () => void;
+  /** Stock or the product list changed (staff only). */
+  ProductsChanged: () => void;
   ServerTime: (p: { nowUtc: string }) => void;
 }
 

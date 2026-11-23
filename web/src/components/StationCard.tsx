@@ -1,10 +1,11 @@
 import type { StationDto, StationState } from '@shared';
 import { CONSOLE_LABEL } from '@shared';
+import { money } from '../lib/money';
 import { TYPE_CLASS, STATE_LABEL, players, shortName } from '../lib/labels';
 import { fmtCountdown, hhmm } from '../lib/time';
 import { StationScene } from './StationScene';
 
-export type CardAction = 'start' | 'extend' | 'end' | 'cancel' | 'tv';
+export type CardAction = 'start' | 'extend' | 'snacks' | 'end' | 'cancel' | 'tv';
 
 interface Props {
   station: StationDto;
@@ -43,6 +44,7 @@ export function StationCard({ station: st, state, now, onAction }: Props) {
               <b>{players(s.players)}</b> · {s.paidMinutes} min pagados
               <br />
               Termina {hhmm(s.endUtc)} · {s.employeeName}
+              {s.snackCents > 0 && <> · Snacks {money(s.snackCents)}</>}
             </>
           ) : (
             <>{state === 'out' ? 'No disponible por ahora' : <>{CONSOLE_LABEL[st.consoleType]} · lista para jugar</>}</>
@@ -57,6 +59,9 @@ export function StationCard({ station: st, state, now, onAction }: Props) {
             <>
               <button className={`btn ${state === 'locked' ? 'pri' : ''}`} onClick={() => onAction('extend', st)}>
                 {state === 'locked' ? 'Extender' : '+ Tiempo'}
+              </button>
+              <button className="btn" onClick={() => onAction('snacks', st)}>
+                Snacks
               </button>
               <button className="btn" onClick={() => onAction('end', st)}>
                 Finalizar

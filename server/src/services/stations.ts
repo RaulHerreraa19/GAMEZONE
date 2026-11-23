@@ -9,7 +9,7 @@ const activeSessionInclude = {
   sessions: {
     where: { endedAt: null },
     take: 1,
-    include: { employee: { select: { name: true } }, payments: { select: { amountCents: true } } },
+    include: { employee: { select: { name: true } }, payments: { select: { amountCents: true, kind: true } } },
   },
 } as const;
 
@@ -38,7 +38,8 @@ function toDto(st: StationRow): StationDto {
           warnedAt: s.warnedAt?.toISOString() ?? null,
           lockedAt: s.lockedAt?.toISOString() ?? null,
           employeeName: s.employee.name,
-          paidCents: s.payments.reduce((a, p) => a + p.amountCents, 0),
+          paidCents: s.payments.filter((p) => p.kind !== 'Snack').reduce((a, p) => a + p.amountCents, 0),
+          snackCents: s.payments.filter((p) => p.kind === 'Snack').reduce((a, p) => a + p.amountCents, 0),
         }
       : null,
   };

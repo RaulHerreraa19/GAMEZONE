@@ -1,25 +1,34 @@
 import { prisma, type Tx } from '../db.js';
 import type { AuthEmployee } from '../lib/auth.js';
 import { HttpError } from '../lib/http.js';
-import { publishAudit, publishShiftChanged, publishStation } from '../realtime/io.js';
-import { METHOD_LABEL, MINUTE_MS, priceCents, type AuditDto, type PayMethod, type StationDto } from '../types.js';
+import { publishAudit, publishProductsChanged, publishShiftChanged, publishStation } from '../realtime/io.js';
+import { METHOD_LABEL, MINUTE_MS, priceCents, type AuditDto, type PayMethod, type SnackItemInput, type StationDto } from '../types.js';
 import { appendAudit } from './audit.js';
 import { findAdminByPassword } from './employees.js';
+import { sellSnacks } from './products.js';
 import { getSettings } from './settings.js';
 import { getOrOpenShift } from './shift.js';
 import { getStation } from './stations.js';
 
 const players = (n: number) => `${n} jugador${n > 1 ? 'es' : ''}`;
 
+interface WorkResult {
+  stationId: number;
+  audits: AuditDto[];
+  moneyMoved: boolean;
+  stockMoved?: boolean;
+}
+
 /** Runs a mutation in one transaction, then publishes its results to connected clients. */
-async function commit(work: (tx: Tx) => Promise<{ stationId: number; audit: AuditDto; moneyMoved: boolean }>): Promise<StationDto> {
-  const { station, audit, moneyMoved } = await prisma.$transaction(async (tx) => {
+async function commit(work: (tx: Tx) => Promise<WorkResult>): Promise<StationDto> {
+  const { station, r } = await prisma.$transaction(async (tx) => {
     const r = await work(tx);
-    return { station: await getStation(r.stationId, tx), audit: r.audit, moneyMoved: r.moneyMoved };
+    return { station: await getStation(r.stationId, tx), r };
   });
   publishStation(station);
-  publishAudit(audit);
-  if (moneyMoved) publishShiftChanged();
+  for (const a of r.audits) publishAudit(a);
+  if (r.moneyMoved) publishShiftChanged();
+  if (r.stockMoved) publishProductsChanged();
   return station;
 }
 
@@ -30,7 +39,11 @@ async function activeSession(tx: Tx, id: number) {
   return s;
 }
 
-export function startSession(emp: AuthEmployee, stationId: number, input: { players: number; minutes: number; method: PayMethod }) {
+export function startSession(
+  emp: AuthEmployee,
+  stationId: number,
+  input: { players: number; minutes: number; method: PayMethod; snacks?: SnackItemInput[] },
+) {
   return commit(async (tx) => {
     const settings = await getSettings();
     const station = await tx.station.findUnique({ where: { id: stationId } });
@@ -55,14 +68,21 @@ export function startSession(emp: AuthEmployee, stationId: number, input: { play
     await tx.payment.create({
       data: { sessionId: session.id, shiftId: shift.id, amountCents, method: input.method, minutes: input.minutes, kind: 'Session', employeeId: emp.id },
     });
-    const audit = await appendAudit(tx, {
-      employeeId: emp.id,
-      stationId,
-      action: 'Inicio de sesión',
-      detail: `${players(input.players)} · ${input.minutes} min · ${METHOD_LABEL[input.method]}`,
-      amountCents,
-    });
-    return { stationId, audit, moneyMoved: true };
+    const audits = [
+      await appendAudit(tx, {
+        employeeId: emp.id,
+        stationId,
+        action: 'Inicio de sesión',
+        detail: `${players(input.players)} · ${input.minutes} min · ${METHOD_LABEL[input.method]}`,
+        amountCents,
+      }),
+    ];
+    // Snacks ordered at the start are charged in the same transaction: if stock fails, nothing starts.
+    if (input.snacks?.length) {
+      const sale = await sellSnacks(tx, { employeeId: emp.id, shiftId: shift.id, sessionId: session.id, stationId, method: input.method, items: input.snacks });
+      audits.push(sale.audit);
+    }
+    return { stationId, audits, moneyMoved: true, stockMoved: !!input.snacks?.length };
   });
 }
 
@@ -93,7 +113,17 @@ export function extendSession(emp: AuthEmployee, sessionId: number, input: { min
       detail: `+${input.minutes} min · ${METHOD_LABEL[input.method]}${wasLocked ? ' · desbloqueo' : ''}`,
       amountCents,
     });
-    return { stationId: s.stationId, audit, moneyMoved: true };
+    return { stationId: s.stationId, audits: [audit], moneyMoved: true };
+  });
+}
+
+/** Snacks added to a session already in progress (also allowed while the station is locked). */
+export function addSnacks(emp: AuthEmployee, sessionId: number, input: { method: PayMethod; items: SnackItemInput[] }) {
+  return commit(async (tx) => {
+    const s = await activeSession(tx, sessionId);
+    const shift = await getOrOpenShift(tx, emp.id);
+    const sale = await sellSnacks(tx, { employeeId: emp.id, shiftId: shift.id, sessionId: s.id, stationId: s.stationId, method: input.method, items: input.items });
+    return { stationId: s.stationId, audits: [sale.audit], moneyMoved: true, stockMoved: true };
   });
 }
 
@@ -108,7 +138,7 @@ export function endSession(emp: AuthEmployee, sessionId: number) {
       action: 'Sesión finalizada',
       detail: early ? 'Antes de tiempo' : 'Tiempo cumplido',
     });
-    return { stationId: s.stationId, audit, moneyMoved: false };
+    return { stationId: s.stationId, audits: [audit], moneyMoved: false };
   });
 }
 
@@ -125,7 +155,8 @@ export async function cancelSession(emp: AuthEmployee, sessionId: number, input:
 
   return commit(async (tx) => {
     const s = await activeSession(tx, sessionId);
-    const paid = await tx.payment.findMany({ where: { sessionId: s.id } });
+    // Only play time is refunded: snacks already handed over (and their stock) stay sold.
+    const paid = await tx.payment.findMany({ where: { sessionId: s.id, kind: { in: ['Session', 'Extension'] } } });
     const shift = await getOrOpenShift(tx, emp.id);
     // One negative payment per original payment method, so the cash/card/transfer cut stays honest.
     const byMethod = new Map<string, number>();
@@ -146,6 +177,6 @@ export async function cancelSession(emp: AuthEmployee, sessionId: number, input:
       detail: `${input.reason} · autorizó ${authorizer.name}`,
       amountCents: -refundCents,
     });
-    return { stationId: s.stationId, audit, moneyMoved: true };
+    return { stationId: s.stationId, audits: [audit], moneyMoved: true };
   });
 }

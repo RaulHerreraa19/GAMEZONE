@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import type { EmployeeDto } from '@shared';
 import { ROLE_LABEL } from '@shared';
-import { IcGrid, IcLog, IcPad, IcRegister, IcUsers } from './icons';
+import { IcBox, IcGrid, IcLog, IcPad, IcRegister, IcUsers } from './icons';
 
-export type View = 'est' | 'bit' | 'cor' | 'sal' | 'usr';
+export type View = 'est' | 'bit' | 'cor' | 'inv' | 'sal' | 'usr';
 
 interface Props {
   view: View;
@@ -46,6 +46,7 @@ export function Sidebar({ view, onView, alerts, shiftLabel, employee, onUser }: 
         {tab('est', 'Estaciones', <IcGrid />, alerts)}
         {tab('bit', 'Bitácora', <IcLog />)}
         {tab('cor', 'Corte de caja', <IcRegister />)}
+        {employee?.role === 'Admin' && tab('inv', 'Inventario', <IcBox />)}
         {employee?.role === 'Admin' && tab('sal', 'Salas', <IcPad />)}
         {employee?.role === 'Admin' && tab('usr', 'Usuarios', <IcUsers />)}
       </nav>

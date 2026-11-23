@@ -37,6 +37,7 @@ export async function getCurrentSummary(): Promise<ShiftSummaryDto> {
     openedUtc: shift?.openedUtc.toISOString() ?? null,
     openedBy: shift?.employee.name ?? null,
     totalCents: sum(payments),
+    snackCents: sum(payments.filter((p) => p.kind === 'Snack')),
     lastHourCents: sum(payments.filter((p) => p.createdUtc.getTime() >= hourAgo)),
     chargeCount: payments.filter((p) => p.kind !== 'Refund').length,
     sessionCount: payments.filter((p) => p.kind === 'Session').length,
@@ -45,7 +46,8 @@ export async function getCurrentSummary(): Promise<ShiftSummaryDto> {
     byMethod: PAY_METHODS.map((m) => ({ label: METHOD_LABEL[m], value: sum(payments.filter((p) => p.method === m)) })),
     byConsole: CONSOLE_TYPES.map((t) => ({
       label: CONSOLE_LABEL[t],
-      value: sum(payments.filter((p) => p.session?.station.consoleType === t)),
+      // Play time only; snacks are reported on their own line.
+      value: sum(payments.filter((p) => p.kind !== 'Snack' && p.session?.station.consoleType === t)),
     })),
     minutesByStation: stations
       .filter((s) => s.active || minutesByStation.has(s.id))

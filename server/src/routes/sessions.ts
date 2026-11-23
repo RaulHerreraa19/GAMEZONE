@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../lib/auth.js';
-import { cancelSession, endSession, extendSession, startSession } from '../services/sessions.js';
+import { addSnacks, cancelSession, endSession, extendSession, startSession } from '../services/sessions.js';
 import { publishAudit, publishShiftChanged } from '../realtime/io.js';
 import { closeShift, getCurrentSummary } from '../services/shift.js';
 import { MAX_CUSTOM_MINUTES, PAY_METHODS } from '../types.js';
@@ -18,9 +18,28 @@ const minutes = z
   .min(1, 'El tiempo mínimo es 1 minuto.')
   .max(MAX_CUSTOM_MINUTES, `El tiempo máximo es ${MAX_CUSTOM_MINUTES} minutos.`);
 
+const snackItems = z
+  .array(
+    z.object({
+      productId: z.number().int().positive('Producto inválido.'),
+      quantity: z.number().int('La cantidad debe ser un número entero.').min(1, 'La cantidad mínima es 1.').max(99, 'La cantidad máxima es 99.'),
+    }),
+  )
+  .max(40, 'Son demasiados productos.');
+
+sessionsRouter.post('/sessions/:id/snacks', async (req, res) => {
+  const body = z.object({ method, items: snackItems.min(1, 'Elige al menos un producto.') }).parse(req.body);
+  res.json(await addSnacks(res.locals.employee, id('Sesión inválida.').parse(req.params.id), body));
+});
+
 sessionsRouter.post('/stations/:id/sessions', async (req, res) => {
   const body = z
-    .object({ players: z.number().int().min(1, 'Elige 1 o 2 jugadores.').max(2, 'Elige 1 o 2 jugadores.'), minutes, method })
+    .object({
+      players: z.number().int().min(1, 'Elige 1 o 2 jugadores.').max(2, 'Elige 1 o 2 jugadores.'),
+      minutes,
+      method,
+      snacks: snackItems.optional(),
+    })
     .parse(req.body);
   res.status(201).json(await startSession(res.locals.employee, id('Estación inválida.').parse(req.params.id), body));
 });
